@@ -2,6 +2,7 @@ package ante
 
 import (
 	"fmt"
+	"strings"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -83,6 +84,27 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	}
 
 	fee := feeTx.GetFee()
+
+	freeMessages := []string{"/canine_chain.storage.MsgPostproof", "/canine_chain.storage.MsgPostContract"}
+
+	msgs := tx.GetMsgs()
+	for _, msg := range msgs {
+		url := sdk.MsgTypeURL(msg)
+		shouldBeFree := false
+		for _, message := range freeMessages {
+			if strings.Compare(message, url) == 0 {
+				c := sdk.NewInt64Coin("stake", 0)
+				fee = sdk.NewCoins(c)
+				shouldBeFree = true
+				break
+			}
+		}
+		if shouldBeFree {
+			break
+		}
+
+	}
+
 	feePayer := feeTx.FeePayer()
 	feeGranter := feeTx.FeeGranter()
 
@@ -109,8 +131,8 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	}
 
 	// deduct the fees
-	if !feeTx.GetFee().IsZero() {
-		err = DeductFees(dfd.bankKeeper, ctx, deductFeesFromAcc, feeTx.GetFee())
+	if !fee.IsZero() {
+		err = DeductFees(dfd.bankKeeper, ctx, deductFeesFromAcc, fee)
 		if err != nil {
 			return ctx, err
 		}
