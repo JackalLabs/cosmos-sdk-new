@@ -85,7 +85,7 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 
 	fee := feeTx.GetFee()
 
-	freeMessages := []string{"/canine_chain.storage.MsgPostproof", "/canine_chain.storage.MsgPostContract"}
+	freeMessages := []string{"/canine_chain.storage.MsgPostproof", "/canine_chain.storage.MsgPostContract", "/canine_chain.storage.MsgRequestAttestationForm", "/canine_chain.storage.MsgAttest"}
 
 	msgs := tx.GetMsgs()
 	for _, msg := range msgs {
