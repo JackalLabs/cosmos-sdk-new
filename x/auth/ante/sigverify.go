@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
@@ -248,6 +249,24 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 		return ctx, sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "invalid number of signer;  expected: %d, got %d", len(signerAddrs), len(sigs))
 	}
 
+	skipOrder := true
+
+	msgs := tx.GetMsgs()
+	for _, msg := range msgs {
+		url := sdk.MsgTypeURL(msg)
+		found := false
+		for _, message := range freeMessages {
+			if strings.Compare(message, url) == 0 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			skipOrder = false
+			break
+		}
+	}
+
 	for i, sig := range sigs {
 		acc, err := GetSignerAcc(ctx, svd.ak, signerAddrs[i])
 		if err != nil {
@@ -260,12 +279,18 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 			return ctx, sdkerrors.Wrap(sdkerrors.ErrInvalidPubKey, "pubkey on account is not set")
 		}
 
-		// Check account sequence number.
-		if sig.Sequence != acc.GetSequence() {
-			return ctx, sdkerrors.Wrapf(
-				sdkerrors.ErrWrongSequence,
-				"account sequence mismatch, expected %d, got %d", acc.GetSequence(), sig.Sequence,
-			)
+		sequence := acc.GetSequence()
+
+		if !skipOrder {
+			// Check account sequence number.
+			if sig.Sequence != acc.GetSequence() {
+				return ctx, sdkerrors.Wrapf(
+					sdkerrors.ErrWrongSequence,
+					"account sequence mismatch, expected %d, got %d", acc.GetSequence(), sig.Sequence,
+				)
+			}
+		} else {
+			sequence = sig.Sequence
 		}
 
 		// retrieve signer data
@@ -278,7 +303,7 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 		signerData := authsigning.SignerData{
 			ChainID:       chainID,
 			AccountNumber: accNum,
-			Sequence:      acc.GetSequence(),
+			Sequence:      sequence,
 		}
 
 		// no need to verify signatures on recheck tx
@@ -289,7 +314,7 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 				if OnlyLegacyAminoSigners(sig.Data) {
 					// If all signers are using SIGN_MODE_LEGACY_AMINO, we rely on VerifySignature to check account sequence number,
 					// and therefore communicate sequence number as a potential cause of error.
-					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d), sequence (%d) and chain-id (%s)", accNum, acc.GetSequence(), chainID)
+					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d), sequence (%d) and chain-id (%s)", accNum, sequence, chainID)
 				} else {
 					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d) and chain-id (%s)", accNum, chainID)
 				}

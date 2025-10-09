@@ -21,6 +21,20 @@ func NewMempoolFeeDecorator() MempoolFeeDecorator {
 	return MempoolFeeDecorator{}
 }
 
+const (
+	MsgPostProof              = "/canine_chain.storage.MsgPostProof"
+	MsgRequestAttestationForm = "/canine_chain.storage.MsgRequestAttestationForm"
+	MsgAttest                 = "/canine_chain.storage.MsgAttest"
+	MsgReport                 = "/canine_chain.storage.MsgReport"
+)
+
+var freeMessages = []string{
+	MsgPostProof,
+	MsgRequestAttestationForm,
+	MsgAttest,
+	MsgReport,
+}
+
 func (mfd MempoolFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
@@ -84,8 +98,6 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	}
 
 	fee := feeTx.GetFee()
-
-	freeMessages := []string{"/canine_chain.storage.MsgPostProof", "/canine_chain.storage.MsgRequestAttestationForm", "/canine_chain.storage.MsgAttest", "/canine_chain.storage.MsgReport"}
 
 	msgs := tx.GetMsgs()
 	for _, msg := range msgs {
