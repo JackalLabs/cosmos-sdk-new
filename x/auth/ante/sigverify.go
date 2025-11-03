@@ -259,8 +259,6 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 			return ctx, sdkerrors.Wrap(sdkerrors.ErrInvalidPubKey, "pubkey on account is not set")
 		}
 
-		sequence := acc.GetSequence()
-
 		// Check account sequence number.
 		if sig.Sequence != acc.GetSequence() {
 			return ctx, sdkerrors.Wrapf(
@@ -279,7 +277,7 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 		signerData := authsigning.SignerData{
 			ChainID:       chainID,
 			AccountNumber: accNum,
-			Sequence:      sequence,
+			Sequence:      acc.GetSequence(),
 		}
 
 		// no need to verify signatures on recheck tx
@@ -290,7 +288,7 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 				if OnlyLegacyAminoSigners(sig.Data) {
 					// If all signers are using SIGN_MODE_LEGACY_AMINO, we rely on VerifySignature to check account sequence number,
 					// and therefore communicate sequence number as a potential cause of error.
-					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d), sequence (%d) and chain-id (%s)", accNum, sequence, chainID)
+					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d), sequence (%d) and chain-id (%s)", accNum, acc.GetSequence(), chainID)
 				} else {
 					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d) and chain-id (%s)", accNum, chainID)
 				}

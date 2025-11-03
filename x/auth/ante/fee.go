@@ -2,8 +2,6 @@ package ante
 
 import (
 	"fmt"
-	"strings"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -28,11 +26,11 @@ const (
 	MsgReport                 = "/canine_chain.storage.MsgReport"
 )
 
-var freeMessages = []string{
-	MsgPostProof,
-	MsgRequestAttestationForm,
-	MsgAttest,
-	MsgReport,
+var freeMessages = map[string]bool{
+	MsgPostProof:              true,
+	MsgRequestAttestationForm: true,
+	MsgAttest:                 true,
+	MsgReport:                 true,
 }
 
 func (mfd MempoolFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
@@ -103,14 +101,7 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	shouldBeFree := true
 	for _, msg := range msgs {
 		url := sdk.MsgTypeURL(msg)
-		matches := false
-		for _, message := range freeMessages {
-			if strings.Compare(message, url) == 0 {
-				matches = true
-				break
-			}
-		}
-		if !matches {
+		if !freeMessages[url] {
 			shouldBeFree = false
 			break
 		}
