@@ -100,21 +100,20 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	fee := feeTx.GetFee()
 
 	msgs := tx.GetMsgs()
+	shouldBeFree := true
 	for _, msg := range msgs {
 		url := sdk.MsgTypeURL(msg)
-		shouldBeFree := false
+		matches := false
 		for _, message := range freeMessages {
 			if strings.Compare(message, url) == 0 {
-				c := sdk.NewInt64Coin("stake", 0)
-				fee = sdk.NewCoins(c)
-				shouldBeFree = true
+				matches = true
 				break
 			}
 		}
-		if shouldBeFree {
+		if !matches {
+			shouldBeFree = false
 			break
 		}
-
 	}
 
 	feePayer := feeTx.FeePayer()
@@ -143,7 +142,7 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	}
 
 	// deduct the fees
-	if !fee.IsZero() {
+	if !fee.IsZero() && !shouldBeFree {
 		err = DeductFees(dfd.bankKeeper, ctx, deductFeesFromAcc, fee)
 		if err != nil {
 			return ctx, err
