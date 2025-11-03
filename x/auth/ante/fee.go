@@ -2,7 +2,6 @@ package ante
 
 import (
 	"fmt"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -18,6 +17,20 @@ type MempoolFeeDecorator struct{}
 
 func NewMempoolFeeDecorator() MempoolFeeDecorator {
 	return MempoolFeeDecorator{}
+}
+
+const (
+	MsgPostProof              = "/canine_chain.storage.MsgPostProof"
+	MsgRequestAttestationForm = "/canine_chain.storage.MsgRequestAttestationForm"
+	MsgAttest                 = "/canine_chain.storage.MsgAttest"
+	MsgReport                 = "/canine_chain.storage.MsgReport"
+)
+
+var freeMessages = map[string]bool{
+	MsgPostProof:              true,
+	MsgRequestAttestationForm: true,
+	MsgAttest:                 true,
+	MsgReport:                 true,
 }
 
 func (mfd MempoolFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (newCtx sdk.Context, err error) {
@@ -83,6 +96,17 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	}
 
 	fee := feeTx.GetFee()
+
+	msgs := tx.GetMsgs()
+	shouldBeFree := true
+	for _, msg := range msgs {
+		url := sdk.MsgTypeURL(msg)
+		if !freeMessages[url] {
+			shouldBeFree = false
+			break
+		}
+	}
+
 	feePayer := feeTx.FeePayer()
 	feeGranter := feeTx.FeeGranter()
 
@@ -109,8 +133,8 @@ func (dfd DeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bo
 	}
 
 	// deduct the fees
-	if !feeTx.GetFee().IsZero() {
-		err = DeductFees(dfd.bankKeeper, ctx, deductFeesFromAcc, feeTx.GetFee())
+	if !fee.IsZero() && !shouldBeFree {
+		err = DeductFees(dfd.bankKeeper, ctx, deductFeesFromAcc, fee)
 		if err != nil {
 			return ctx, err
 		}
