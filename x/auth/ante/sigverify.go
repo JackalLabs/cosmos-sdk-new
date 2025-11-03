@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"strings"
-
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -249,24 +247,6 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 		return ctx, sdkerrors.Wrapf(sdkerrors.ErrUnauthorized, "invalid number of signer;  expected: %d, got %d", len(signerAddrs), len(sigs))
 	}
 
-	skipOrder := true
-
-	msgs := tx.GetMsgs()
-	for _, msg := range msgs {
-		url := sdk.MsgTypeURL(msg)
-		found := false
-		for _, message := range freeMessages {
-			if strings.Compare(message, url) == 0 {
-				found = true
-				break
-			}
-		}
-		if !found {
-			skipOrder = false
-			break
-		}
-	}
-
 	for i, sig := range sigs {
 		acc, err := GetSignerAcc(ctx, svd.ak, signerAddrs[i])
 		if err != nil {
@@ -281,16 +261,12 @@ func (svd SigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simul
 
 		sequence := acc.GetSequence()
 
-		if !skipOrder {
-			// Check account sequence number.
-			if sig.Sequence != acc.GetSequence() {
-				return ctx, sdkerrors.Wrapf(
-					sdkerrors.ErrWrongSequence,
-					"account sequence mismatch, expected %d, got %d", acc.GetSequence(), sig.Sequence,
-				)
-			}
-		} else {
-			sequence = sig.Sequence
+		// Check account sequence number.
+		if sig.Sequence != acc.GetSequence() {
+			return ctx, sdkerrors.Wrapf(
+				sdkerrors.ErrWrongSequence,
+				"account sequence mismatch, expected %d, got %d", acc.GetSequence(), sig.Sequence,
+			)
 		}
 
 		// retrieve signer data
